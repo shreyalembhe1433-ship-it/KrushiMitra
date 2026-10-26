@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:krushimitra/Auth/Homepage.dart';
+import 'package:krushimitra/Auth/AuthWrapper.dart';
 import 'package:krushimitra/Auth/LoginPage.dart';
 
 class Register extends StatefulWidget {
@@ -46,10 +46,14 @@ class _RegisterState extends State<Register> {
  Future<void> _register() async {
   if (!_formKey.currentState!.validate()) return;
 
+  if (selectedRole == null) {
+    _showMessage('Please select your role');
+    return;
+  }
+
   setState(() => _isLoading = true);
 
   try {
-    //Create Firebase Authentication
     final credential = await FirebaseAuth.instance
         .createUserWithEmailAndPassword(
       email: _emailController.text.trim(),
@@ -61,25 +65,34 @@ class _RegisterState extends State<Register> {
       throw Exception('Account could not be created.');
     }
 
-    //Save user details and role  in firestore
-    await FirebaseFirestore.instance.collection('user').doc(user.uid).set({
+    final Map<String, dynamic> userData = {
       'uid': user.uid,
       'name': _nameController.text.trim(),
       'email': _emailController.text.trim(),
       'mobile': _mobileController.text.trim(),
-      'shop': _shopController.text.trim(),
       'location': _locationController.text.trim(),
       'role': selectedRole!,
-      'isVerified':selectedRole == 'Expert' ? false : true,
-      'isActive':true,
+      'isVerified': selectedRole == 'Expert' ? false : true,
+      'isActive': true,
       'createdAt': FieldValue.serverTimestamp(),
-    });
-    print("Registration successful");
+    };
+
+    // Shop name is saved only for Shopkeeper.
+    if (selectedRole == 'Shopkeeper') {
+      userData['shop'] = _shopController.text.trim();
+    }
+
+    await FirebaseFirestore.instance
+        .collection('user')
+        .doc(user.uid)
+        .set(userData);
+
     if (!mounted) return;
-    //successful registration
-    Navigator.pushReplacement(
+
+    Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => Homepage()),
+      MaterialPageRoute(builder: (_) => Authwrapper()),
+      (route) => false,
     );
   } on FirebaseAuthException catch (e) {
     if (mounted) _showMessage(_authErrorMessage(e));
@@ -288,16 +301,26 @@ class _RegisterState extends State<Register> {
                                   },
                                 ),
                                 const SizedBox(height: 14),
-                                TextFormField(
-                                  controller: _shopController,
-                                  textCapitalization: TextCapitalization.words,
-                                  decoration: _inputDecoration(
-                                    label: 'Shop name',
-                                    icon: Icons.storefront_outlined,
+                                if (selectedRole == 'Shopkeeper') ...[
+                                  const SizedBox(height: 14),
+                                  TextFormField(
+                                    controller: _shopController,
+                                    textCapitalization:
+                                        TextCapitalization.words,
+                                    decoration: _inputDecoration(
+                                      label: 'Agro Shop Name',
+                                      icon: Icons.storefront_outlined,
+                                    ),
+                                    validator: (value) {
+                                      if (selectedRole == 'Shopkeeper' &&
+                                          (value == null ||
+                                              value.trim().isEmpty)) {
+                                        return 'Please enter your agro shop name';
+                                      }
+                                      return null;
+                                    },
                                   ),
-                                  validator: (value) =>
-                                      _required(value, 'Shop name'),
-                                ),
+                                ],
                                 const SizedBox(height: 14),
                                 TextFormField(
                                   controller: _locationController,
@@ -344,6 +367,9 @@ class _RegisterState extends State<Register> {
                                   onChanged: (value) {
                                     setState(() {
                                       selectedRole = value;
+                                      if (value != 'Shopkeeper') {
+                                        _shopController.clear();
+                                      }
                                     });
                                   },
                                   validator: (value) {
