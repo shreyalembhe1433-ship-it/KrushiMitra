@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:krushimitra/Auth/Homepage.dart';
+import 'package:krushimitra/Auth/AuthWrapper.dart';
 import 'package:krushimitra/Auth/RegisterPage.dart';
 
 class Login extends StatefulWidget {
@@ -43,7 +43,7 @@ class _LoginState extends State<Login> {
 
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => Homepage()),
+        MaterialPageRoute(builder: (_) => Authwrapper()),
       );
     } on FirebaseAuthException catch (error) {
       _showMessage(_authErrorMessage(error));
